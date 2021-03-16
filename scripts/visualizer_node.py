@@ -27,7 +27,8 @@ class Visualizer:
         self.visualization_pub = rospy.Publisher(self.visualization_topic, Image, queue_size=1)
 
         # Prius control
-        self.prius_control_sub = rospy.Subscriber("/prius", Control, self.prius_control_callback)
+        self.prius_control_topic = "/prius"
+        self.prius_control_sub = rospy.Subscriber(self.prius_control_topic, Control, self.prius_control_callback)
         self.throttle = 0.0  # Range 0 to 1, 1 is max throttle
         self.brake = 0.0  # Range 0 to 1, 1 is max brake
         self.steer = 0.0  # Range -1 to +1, +1 is maximum left turn
@@ -38,14 +39,16 @@ class Visualizer:
                                        "shift_gears": self.shift_gears}
 
         # Prius mode
-        self.prius_mode_sub = rospy.Subscriber("/prius/mode", Mode, self.prius_mode_callback)
+        self.prius_mode_topic = "/prius/mode"
+        self.prius_mode_sub = rospy.Subscriber(self.prius_mode_topic, Mode, self.prius_mode_callback)
         self.selfdriving = False
         self.collect = False
         self.prius_mode_messages = {"selfdriving": self.selfdriving,
                                     "collect": self.collect}
 
         # Prius state
-        self.prius_state_sub = rospy.Subscriber("/prius/states", States, self.prius_state_callback)
+        self.prius_states_topic = "/prius/states"
+        self.prius_state_sub = rospy.Subscriber(self.prius_states_topic, States, self.prius_state_callback)
         self.velocity = 0.0  # km/h
         self.steer_angle = 0.0  # TODO: radians? or degrees?
         self.prius_state_messages = {"velocity": self.velocity, "steer_angle": self.steer_angle}
