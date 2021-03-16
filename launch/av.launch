@@ -32,7 +32,7 @@
     <!--<node pkg="av" type="states" name="states_node" output="screen" />-->
 
     <!-- Run collector node -->
-    <!--<node pkg="av" type="collector" name="collector_node" output="screen" />-->
+    <node pkg="av_03" type="collector_node.py" name="collector_node" output="screen" />
 
     <!-- Run control_prediction node -->
     <!--<node pkg="av" type="control_prediction" name="control_prediction_node" output="screen" />-->
