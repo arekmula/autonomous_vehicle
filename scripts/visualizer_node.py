@@ -6,7 +6,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
 # Custom ROS imports
-from av_msgs.msg import Mode
+from av_msgs.msg import Mode, States
 from prius_msgs.msg import Control
 
 # Python imports
@@ -44,10 +44,15 @@ class Visualizer:
         self.prius_mode_messages = {"selfdriving": self.selfdriving,
                                     "collect": self.collect}
 
+        # Prius state
+        self.prius_state_sub = rospy.Subscriber("/prius/states", States, self.prius_state_callback)
+        self.velocity = 0.0  # km/h
+        self.steer_angle = 0.0  # TODO: radians? or degrees?
+        self.prius_state_messages = {"velocity": self.velocity, "steer_angle": self.steer_angle}
+
         # Cv Bridge
         self.cv_bridge = CvBridge()
 
-    # Front camera image callback
     def front_camera_image_callback(self, data):
         """
         Callback to "/prius/front_camera/image_raw" topic
@@ -67,7 +72,6 @@ class Visualizer:
             visualization_msg = self.cv_bridge.cv2_to_imgmsg(cv_image, "bgr8")
             self.visualization_pub.publish(visualization_msg)
 
-    # Prius control message callback
     def prius_control_callback(self, data):
         """
         Callback to "/prius" topic
@@ -95,6 +99,15 @@ class Visualizer:
         self.prius_mode_messages = {"selfdriving": data.selfdriving,
                                     "collect": data.collect}
 
+    def prius_state_callback(self, data):
+        """
+        Callback to "/prius/state" topic
+
+        :param data: Input State message
+        :return:
+        """
+        self.prius_state_messages = {"velocity": data.velocity, "steer_angle": data.steer_angle}
+
     def draw_prius_status(self, img):
         """
         Draws information from "/prius", "/prius/mode" and "/prius/states" topic on the visualization image
@@ -106,18 +119,25 @@ class Visualizer:
         img_height, img_width, _ = img.shape
 
         text_pose_base_x = 50
+
+        # Prius topic
         prius_text_poses = [(text_pose_base_x, img_height - 50), (text_pose_base_x, img_height - 64),
                             (text_pose_base_x, img_width - 78), (text_pose_base_x, img_width - 92)]
         # TODO: Check in the future if messages in the same order every time
         for (key, value), text_pose in zip(self.prius_control_messages.items(), prius_text_poses):
             img = cv2.putText(img, text="{} {}".format(key, value), org=text_pose,
                               fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 0, 0), thickness=1)
-
+        # Prius mode topic
         prius_mode_text_poses = [(text_pose_base_x, img_height - 106), (text_pose_base_x, img_height - 120)]
         for (key, value), text_pose in zip(self.prius_mode_messages.items(), prius_mode_text_poses):
             img = cv2.putText(img, text="{} {}".format(key, value), org=text_pose,
                               fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 0, 0), thickness=1)
 
+        # Prius state topic
+        prius_state_text_poses = [(text_pose_base_x, img_height - 134), (text_pose_base_x, img_height - 148)]
+        for (key, value), text_pose in zip(self.prius_state_messages.items(), prius_state_text_poses):
+            img = cv2.putText(img, text="{} {}".format(key, value), org=text_pose,
+                              fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 0, 0), thickness=1)
 
         return img
 
