@@ -1,25 +1,34 @@
 import rospy
 
 from nav_msgs.msg import Odometry
+# from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from av_msgs.msg import States
 
 
+class State:
+    def __init__(self):
 
-def callback(data):
-    print('X: ',data.pose.pose.position.x, 'Y: ',data.pose.pose.position.y, 'Z: ',data.pose.pose.position.z)
-    print('X: ',data.pose.pose.orientation.x, 'Y: ',data.pose.pose.orientation.y, 'Z: ',data.pose.pose.orientation.z)
-    # rospy.loginfo(rospy.get_caller_id() + "Test ", data.data)
+        self.lisiner = rospy.Subscriber("/base_pose_ground_truth", Odometry, self.callback)
+        self.states_pub = rospy.Publisher('/prius/states', States, queue_size=1)
 
+    def callback(self, data):
+        print('X: ',data.pose.pose.position.x, 'Y: ',data.pose.pose.position.y, 'Z: ',data.pose.pose.position.z)
+        print('Z angle: ',data.twist.twist.angular.z)
 
-def lisiner():
+        if data is not None:
+            # calculate velocity
+            #.................
+            states_msg = States()
+            states_msg.velocity = 0
+            states_msg.steer = data.twist.twist.angular.z
+            self.states_pub.publish(states_msg)
 
-    rospy.Subscriber("/base_pose_ground_truth", Odometry, callback)
-    rospy.spin()
 
 if __name__ == '__main__':
     rospy.init_node('states_node')
-    lisiner()
+    state = State()
+    rospy.spin()
 
 # States.msg
 # Header header
