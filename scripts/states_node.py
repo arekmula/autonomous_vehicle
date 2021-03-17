@@ -31,14 +31,14 @@ class State:
 
             if delta_time > self.delay_time:
                 # calculate velocity
-                v = (np.sqrt((data.pose.pose.position.x - self.x_prev) ** 2 + (
-                            data.pose.pose.position.y - self.y_prev) ** 2)) / delta_time
+                v = (np.sqrt(data.twist.twist.linear.x ** 2 + data.twist.twist.linear.y ** 2
+                             + data.twist.twist.linear.z ** 2))
 
-                # convert to km/h (?)
+                # convert to km/h
                 v = v * 3.6
 
                 states_msg.velocity = v
-                states_msg.steer = data.twist.twist.angular.z
+
                 self.states_pub.publish(states_msg)
 
                 self.x_prev = data.pose.pose.position.x
