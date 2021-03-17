@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-
 import rospy
 import numpy as np
 
 from nav_msgs.msg import Odometry
-# from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from av_msgs.msg import States
 
@@ -12,12 +10,13 @@ from av_msgs.msg import States
 class State:
     def __init__(self):
 
-        self.lisiner = rospy.Subscriber("/base_pose_ground_truth", Odometry, self.callback)
+        self.listener = rospy.Subscriber("/base_pose_ground_truth", Odometry, self.callback)
         self.states_pub = rospy.Publisher('/prius/states', States, queue_size=1)
 
         self.x_prev = 0
         self.y_prev = 0
         self.time_prev = 0
+        self.delay_time = 2
 
     def callback(self, data):
 
@@ -30,7 +29,7 @@ class State:
             # calculate dt
             delta_time = (time - self.time_prev)
 
-            if delta_time > 2:
+            if delta_time > self.delay_time:
                 # calculate velocity
                 v = (np.sqrt((data.pose.pose.position.x - self.x_prev) ** 2 + (
                             data.pose.pose.position.y - self.y_prev) ** 2)) / delta_time
@@ -41,7 +40,6 @@ class State:
                 states_msg.velocity = v
                 states_msg.steer = data.twist.twist.angular.z
                 self.states_pub.publish(states_msg)
-
 
                 self.x_prev = data.pose.pose.position.x
                 self.y_prev = data.pose.pose.position.y
