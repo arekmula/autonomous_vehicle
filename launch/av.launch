@@ -29,7 +29,7 @@
     <!--<node pkg="av" type="controller" name="controller_node" output="screen" />-->
 
     <!-- Run states node -->
-    <!--<node pkg="av" type="states" name="states_node" output="screen" />-->
+    <node pkg="av_03" type="states_node.py" name="states_node" output="screen" />
 
     <!-- Run collector node -->
     <!--<node pkg="av" type="collector" name="collector_node" output="screen" />-->
