@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import rospy
 import numpy as np
 
@@ -18,10 +20,6 @@ class State:
         self.time_prev = 0
 
     def callback(self, data):
-        # print(data.header.stamp)
-        # print('X: ',data.pose.pose.position.x, 'Y: ',data.pose.pose.position.y, 'Z: ',data.pose.pose.position.z)
-        # print('Z angle: ',data.twist.twist.angular.z)
-
 
         if data is not None:
             states_msg = States()
@@ -29,17 +27,17 @@ class State:
             # get time in seconds
             time = rospy.get_time()
 
-            # calculate velocity
+            # calculate dt
             delta_time = (time - self.time_prev)
 
             if delta_time > 2:
-                pass
+                # calculate velocity
                 v = (np.sqrt((data.pose.pose.position.x - self.x_prev) ** 2 + (
                             data.pose.pose.position.y - self.y_prev) ** 2)) / delta_time
 
                 # convert to km/h (?)
                 v = v * 3.6
-                print v
+
                 states_msg.velocity = v
                 states_msg.steer = data.twist.twist.angular.z
                 self.states_pub.publish(states_msg)
@@ -53,14 +51,4 @@ if __name__ == '__main__':
     rospy.init_node('states_node')
     state = State()
     rospy.spin()
-
-# States.msg
-# Header header
-#
-# # Vehicle velocity [km/h]
-# float64 velocity
-#
-# # Vehicle steering angle
-# float64 steer
-
 
