@@ -49,7 +49,7 @@ class Visualizer:
         # Prius state
         self.prius_states_topic = "/prius/states"
         self.prius_state_sub = rospy.Subscriber(self.prius_states_topic, States, self.prius_state_callback)
-        self.velocity = 0.0  # km/h
+        self.velocity = 0  # km/h
         self.steer_angle = 0.0  # TODO: radians? or degrees?
         self.prius_state_messages = {"velocity": self.velocity, "steer_angle": self.steer_angle}
 
@@ -109,7 +109,7 @@ class Visualizer:
         :param data: Input State message
         :return:
         """
-        self.prius_state_messages = {"velocity": data.velocity, "steer_angle": data.steer_angle}
+        self.prius_state_messages = {"velocity": int(data.velocity), "steer_angle": data.steer}
 
     def draw_prius_status(self, img):
         """
@@ -129,18 +129,18 @@ class Visualizer:
         # TODO: Check in the future if messages in the same order every time
         for (key, value), text_pose in zip(self.prius_control_messages.items(), prius_text_poses):
             img = cv2.putText(img, text="{} {}".format(key, value), org=text_pose,
-                              fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 0, 0), thickness=1)
+                              fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 255, 255), thickness=1)
         # Prius mode topic
         prius_mode_text_poses = [(text_pose_base_x, img_height - 106), (text_pose_base_x, img_height - 120)]
         for (key, value), text_pose in zip(self.prius_mode_messages.items(), prius_mode_text_poses):
             img = cv2.putText(img, text="{} {}".format(key, value), org=text_pose,
-                              fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 0, 0), thickness=1)
+                              fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 255, 255), thickness=1)
 
         # Prius state topic
         prius_state_text_poses = [(text_pose_base_x, img_height - 134), (text_pose_base_x, img_height - 148)]
         for (key, value), text_pose in zip(self.prius_state_messages.items(), prius_state_text_poses):
             img = cv2.putText(img, text="{} {}".format(key, value), org=text_pose,
-                              fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 0, 0), thickness=1)
+                              fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(255, 255, 255), thickness=1)
 
         return img
 
