@@ -87,6 +87,8 @@ class Collector:
         :param data: Input Mode message
         :return:
         """
+        if self.collect != data.collect:
+            rospy.loginfo("Changed collecting data status to: ", data.collect)
         self.collect = data.collect
 
     def prius_state_callback(self, data):
