@@ -85,7 +85,6 @@ class Keyboard:
             self.steer += 0.1
         self.publish()
 
-        
     def publish(self, event = None):
         stamp = rospy.Time.now()
         
@@ -100,7 +99,7 @@ class Keyboard:
         self.mode_msg.selfdriving = self.selfdrivingState
         self.mode_msg.collect = self.collectData
         
-        #PUBLISH
+        # PUBLISH
         self.control_pub.publish(self.control_msg)
         self.mode_pub.publish(self.mode_msg)
         
