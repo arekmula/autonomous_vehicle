@@ -37,8 +37,8 @@
     <!-- Run control_prediction node -->
     <!--<node pkg="av" type="control_prediction" name="control_prediction_node" output="screen" />-->
 
-    <!-- Run visualizer node -->
-    <!--<node pkg="av" type="visualizer" name="visualizer_node" output="screen" />-->
+    <!--Run visualizer node -->
+    <node pkg="av_03" type="visualizer_node.py" name="visualizer_node" output="screen" />
 
     <!-- Run image_view node -->
     <!--<node pkg="image_view" type="image_view" name="image_view_node" respawn="false" output="screen">
