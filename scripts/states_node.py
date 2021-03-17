@@ -13,37 +13,30 @@ class State:
         self.listener = rospy.Subscriber("/base_pose_ground_truth", Odometry, self.callback)
         self.states_pub = rospy.Publisher('/prius/states', States, queue_size=1)
 
-        self.x_prev = 0
-        self.y_prev = 0
-        self.time_prev = 0
-        self.delay_time = 0.1
+        self.last_published_time = rospy.get_rostime()
+        self.last_published = None
+        self.timer = rospy.Timer(rospy.Duration(1. / 20.), self.timer_callback)
+
+    def timer_callback(self, event):
+        if self.last_published and self.last_published_time < rospy.get_rostime() + rospy.Duration(1.0 / 20.):
+            self.callback(self.last_published)
 
     def callback(self, data):
 
         if data is not None:
             states_msg = States()
 
-            # get time in seconds
-            time = rospy.get_time()
+            # calculate velocity
+            v = (np.sqrt(data.twist.twist.linear.x ** 2 + data.twist.twist.linear.y ** 2
+                         + data.twist.twist.linear.z ** 2))
 
-            # calculate dt
-            delta_time = (time - self.time_prev)
+            # convert to km/h
+            v = v * 3.6
 
-            if delta_time > self.delay_time:
-                # calculate velocity
-                v = (np.sqrt(data.twist.twist.linear.x ** 2 + data.twist.twist.linear.y ** 2
-                             + data.twist.twist.linear.z ** 2))
+            states_msg.velocity = v
 
-                # convert to km/h
-                v = v * 3.6
+            self.states_pub.publish(states_msg)
 
-                states_msg.velocity = v
-
-                self.states_pub.publish(states_msg)
-
-                self.x_prev = data.pose.pose.position.x
-                self.y_prev = data.pose.pose.position.y
-                self.time_prev = time
 
 if __name__ == '__main__':
     rospy.init_node('states_node')
