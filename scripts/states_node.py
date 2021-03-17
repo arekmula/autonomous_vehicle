@@ -16,7 +16,7 @@ class State:
         self.x_prev = 0
         self.y_prev = 0
         self.time_prev = 0
-        self.delay_time = 2
+        self.delay_time = 0.1
 
     def callback(self, data):
 
