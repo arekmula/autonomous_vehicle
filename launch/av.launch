@@ -26,7 +26,7 @@
     </node>-->
 
     <!-- Run controller node -->
-    <!--<node pkg="av" type="controller" name="controller_node" output="screen" />-->
+    <node pkg="av_03" type="controller_node.py" name="controller_node" output="screen" />
 
     <!-- Run states node -->
     <!--<node pkg="av" type="states" name="states_node" output="screen" />-->
