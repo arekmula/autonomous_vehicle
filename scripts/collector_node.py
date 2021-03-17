@@ -32,7 +32,7 @@ class Collector:
         # Prius state
         self.prius_states_topic = "/prius/states"
         self.prius_state_sub = rospy.Subscriber(self.prius_states_topic, States, self.prius_state_callback)
-        self.velocity = 0.0  # km/h
+        self.velocity = 0  # km/h
         self.steer_angle = 0.0  # TODO: radians? or degrees?
 
         # Cv Bridge
@@ -97,8 +97,8 @@ class Collector:
         :param data: Input State message
         :return:
         """
-        self.velocity = data.velocity
-        self.steer_angle = data.steer_angle
+        self.velocity = int(data.velocity)
+        self.steer_angle = data.steer
 
     def save_labels(self):
         """
