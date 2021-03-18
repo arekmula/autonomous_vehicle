@@ -18,9 +18,9 @@ class Keyboard:
         self.collect_data = False
         self.self_driving_state = False
 
-        self.throttle = 0
-        self.brake = 0
-        self.steer = 0
+        self.throttle = 0.0
+        self.var_brake = 0.0
+        self.steer = 0.0
         self.gear = Control.NO_COMMAND
 
         self.control_msg = Control()
@@ -69,24 +69,37 @@ class Keyboard:
 
     def speed_up(self, e):
         rospy.loginfo(e)
-        self.brake = 0
-        self.throttle = 1
+        self.var_brake = 0.0
+        if self.throttle >= 1.:
+            self.throttle = 1.0
+        else:
+            self.throttle += 0.1
         self.publish()
 
     def brake(self, e):
         rospy.loginfo(e)
-        self.throttle = 0
-        self.brake = -1
+        self.throttle = 0.0
+        if self.var_brake >= 1:
+            self.var_brake = 1.0
+        else:
+            self.var_brake += 0.1
+
         self.publish()
 
     def turn_left(self, e):
         rospy.loginfo(e)
-        self.steer = 1
+        if self.steer >= 1:
+            self.steer = 1.0
+        else:
+            self.steer += 0.1
         self.publish()
 
     def turn_right(self, e):
         rospy.loginfo(e)
-        self.steer = -1
+        if self.steer <= -1:
+            self.steer = -1.0
+        else:
+            self.steer += -0.1
         self.publish()
 
     def publish(self, event=None):
@@ -94,7 +107,7 @@ class Keyboard:
 
         # FILL CONTROL
         self.control_msg.header.stamp = stamp
-        self.control_msg.brake = self.brake
+        self.control_msg.brake = self.var_brake
         self.control_msg.throttle = self.throttle
         self.control_msg.steer = self.steer
         self.control_msg.shift_gears = self.gear
