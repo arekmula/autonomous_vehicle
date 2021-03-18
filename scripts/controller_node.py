@@ -28,10 +28,10 @@ class Keyboard:
 
         keyboard.on_press_key("c", self.key_collect_data, suppress=False)
         keyboard.on_press_key("s", self.key_selfdriving, suppress=False)
-        keyboard.on_press_key("0", self.shift_gear, suppress=False)
-        keyboard.on_press_key("1", self.shift_gear, suppress=False)
-        keyboard.on_press_key("2", self.shift_gear, suppress=False)
-        keyboard.on_press_key("3", self.shift_gear, suppress=False)
+        keyboard.on_press_key("0", self.shift_gear_no_command, suppress=False)
+        keyboard.on_press_key("1", self.shift_gear_neutral, suppress=False)
+        keyboard.on_press_key("2", self.shift_gear_forward, suppress=False)
+        keyboard.on_press_key("3", self.shift_gear_reverse, suppress=False)
         keyboard.on_press_key("up", self.speed_up, suppress=False)
         keyboard.on_press_key("down", self.brake, suppress=False)
         keyboard.on_press_key("left", self.turn_left, suppress=False)
@@ -47,16 +47,24 @@ class Keyboard:
         self.self_driving_state ^= True
         self.publish()
 
-    def shift_gear(self, e):
-        rospy.loginfo(e)
-        if e == "0":
-            self.gear = Control.NO_COMMAND
-        elif e == "1":
-            self.gear = Control.NEUTRAL
-        elif e == "2":
-            self.gear = Control.FORWARD
-        elif e == "3":
-            self.gear = Control.REVERSE
+    def shift_gear_no_command(self, e):
+        rospy.loginfo("Gear: No command")
+        self.gear = Control.NO_COMMAND
+        self.publish()
+
+    def shift_gear_neutral(self, e):
+        rospy.loginfo("Gear: Neutral")
+        self.gear = Control.NEUTRAL
+        self.publish()
+
+    def shift_gear_forward(self, e):
+        rospy.loginfo("Gear: Forwad")
+        self.gear = Control.FORWARD
+        self.publish()
+
+    def shift_gear_reverse(self, e):
+        rospy.loginfo("Gear: Reverse")
+        self.gear = Control.REVERSE
         self.publish()
 
     def speed_up(self, e):
@@ -89,6 +97,7 @@ class Keyboard:
         self.control_msg.brake = self.brake
         self.control_msg.throttle = self.throttle
         self.control_msg.steer = self.steer
+        self.control_msg.shift_gears = self.gear
 
         # FILL MODE
         self.mode_msg.header.stamp = stamp
