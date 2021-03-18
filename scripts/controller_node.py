@@ -20,7 +20,7 @@ class Keyboard:
 
         self.throttle = 0
         self.brake = 0
-        self.steer = 0.
+        self.steer = 0
         self.gear = Control.NO_COMMAND
 
         self.control_msg = Control()
@@ -73,18 +73,12 @@ class Keyboard:
 
     def turn_left(self, e):
         rospy.loginfo(e)
-        if self.steer <= -1.:
-            self.steer = -1.
-        else:
-            self.steer -= 0.1
+        self.steer = 1
         self.publish()
 
     def turn_right(self, e):
         rospy.loginfo(e)
-        if self.steer >= 1.:
-            self.steer = 1.
-        else:
-            self.steer += 0.1
+        self.steer = -1
         self.publish()
 
     def publish(self, event=None):
