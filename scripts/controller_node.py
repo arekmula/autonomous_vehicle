@@ -18,8 +18,8 @@ class Keyboard:
         self.collect_data = False
         self.self_driving_state = False
 
-        self.throttle = 0.
-        self.brake = 0.
+        self.throttle = 0
+        self.brake = 0
         self.steer = 0.
         self.gear = Control.NO_COMMAND
 
@@ -38,14 +38,17 @@ class Keyboard:
         keyboard.on_press_key("right", self.turn_right, suppress=False)
 
     def key_collect_data(self, e):
+        rospy.loginfo(e)
         self.collect_data ^= True
         self.publish()
 
     def key_selfdriving(self, e):
+        rospy.loginfo(e)
         self.self_driving_state ^= True
         self.publish()
 
     def shift_gear(self, e):
+        rospy.loginfo(e)
         if e == "0":
             self.gear = Control.NO_COMMAND
         elif e == "1":
@@ -57,22 +60,19 @@ class Keyboard:
         self.publish()
 
     def speed_up(self, e):
-        self.brake = 0.
-        if self.throttle >= 1.:
-            self.throttle = 1.
-        else:
-            self.throttle += 0.1
+        rospy.loginfo(e)
+        self.brake = 0
+        self.throttle = 1
         self.publish()
 
     def brake(self, e):
-        self.throttle = 0.
-        if self.brake >= 1.:
-            self.brake = 1.
-        else:
-            self.brake += 0.1
+        rospy.loginfo(e)
+        self.throttle = 0
+        self.brake = -1
         self.publish()
 
     def turn_left(self, e):
+        rospy.loginfo(e)
         if self.steer <= -1.:
             self.steer = -1.
         else:
@@ -80,6 +80,7 @@ class Keyboard:
         self.publish()
 
     def turn_right(self, e):
+        rospy.loginfo(e)
         if self.steer >= 1.:
             self.steer = 1.
         else:
