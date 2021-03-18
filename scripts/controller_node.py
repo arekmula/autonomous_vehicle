@@ -71,7 +71,7 @@ class Keyboard:
         if self.throttle >= 1.:
             self.throttle = 1.0
         else:
-            self.throttle += self.throttle_change_ratio
+            self.throttle += self.throttle_change_increment
 
     def brake(self, e):
         rospy.loginfo(e)
@@ -79,21 +79,21 @@ class Keyboard:
         if self.var_brake >= 1:
             self.var_brake = 1.0
         else:
-            self.var_brake += self.brake_change_ratio
+            self.var_brake += self.brake_change_increment
 
     def turn_left(self, e):
         rospy.loginfo(e)
         if self.steer >= 1.:
             self.steer = 1.0
         else:
-            self.steer += self.steer_change_ratio
+            self.steer += self.steer_change_increment
 
     def turn_right(self, e):
         rospy.loginfo(e)
         if self.steer <= -1.:
             self.steer = -1.0
         else:
-            self.steer -= self.steer_change_ratio
+            self.steer -= self.steer_change_increment
 
     def publish_control(self, event=None):
         stamp = rospy.Time.now()
@@ -116,9 +116,6 @@ class Keyboard:
         self.control_pub.publish(control_msg)
         self.mode_pub.publish(mode_msg)
         
-        self.control_pub.publish(control_msg)
-        self.mode_pub.publish(mode_msg)
-
 
 if __name__ == '__main__':
     rospy.init_node("controller_node")
