@@ -11,7 +11,6 @@ class Keyboard:
 
     def __init__(self):
 
-        time.sleep(5)
         self.control_pub = rospy.Publisher("/prius", Control, queue_size=1)
         self.mode_pub = rospy.Publisher("/prius/mode", Mode, queue_size=1)
 
@@ -23,9 +22,9 @@ class Keyboard:
         self.steer = 0.0
         self.gear = Control.NO_COMMAND
         
-        self.throttle_change_increment = 0.15
-        self.brake_change_increment = 0.05
-        self.steer_change_increment = 0.05
+        self.throttle_change_increment = 0.10
+        self.brake_change_increment = 0.10
+        self.steer_change_increment = 0.04
 
         self.control_msg = Control()
         self.mode_msg = Mode()

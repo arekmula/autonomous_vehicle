@@ -7,6 +7,7 @@ from sensor_msgs.msg import Image
 
 # Custom ROS imports
 from av_msgs.msg import Mode, States
+from prius_msgs.msg import Control
 
 # Python imports
 import cv2
@@ -35,11 +36,16 @@ class Collector:
         self.velocity = 0  # km/h
         self.steer_angle = 0.0  # TODO: radians? or degrees?
 
+        # Prius callback
+        self.prius_topic = "/prius"
+        self.prius_sub = rospy.Subscriber(self.prius_topic, Control, self.prius_callback)
+        self.steer = 0.0
+
         # Cv Bridge
         self.cv_bridge = CvBridge()
 
         # Pandas dataframe with labels
-        self.df_labels = pd.DataFrame(data={"img_name": [], "velocity": [], "steer_angle": []})
+        self.df_labels = pd.DataFrame(data={"img_name": [], "velocity": [], "steer_angle": [], "steer": []})
 
         # Received image count
         self.received_image_count = 0
@@ -70,7 +76,8 @@ class Collector:
                 # Get current labels as dataframe
                 current_label = pd.DataFrame(data={"img_name": [image_name],
                                                    "velocity": [self.velocity],
-                                                   "steer_angle": [self.steer_angle]})
+                                                   "steer_angle": [self.steer_angle],
+                                                   "steer": [self.steer]})
 
                 # Append current labels dataframe to dataframe with previous labels
                 self.df_labels = self.df_labels.append(current_label, ignore_index=True)
@@ -99,6 +106,9 @@ class Collector:
         """
         self.velocity = int(data.velocity)
         self.steer_angle = data.steer
+
+    def prius_callback(self, data):
+        self.steer = data.steer
 
     def save_labels(self):
         """
