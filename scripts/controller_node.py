@@ -11,7 +11,6 @@ class Keyboard:
 
     def __init__(self):
 
-        time.sleep(5)
         self.control_pub = rospy.Publisher("/prius", Control, queue_size=1)
         self.mode_pub = rospy.Publisher("/prius/mode", Mode, queue_size=1)
 
@@ -22,6 +21,10 @@ class Keyboard:
         self.var_brake = 0.0
         self.steer = 0.0
         self.gear = Control.NO_COMMAND
+        
+        self.throttle_change_increment = 0.10
+        self.brake_change_increment = 0.10
+        self.steer_change_increment = 0.04
 
         self.control_msg = Control()
         self.mode_msg = Mode()
@@ -40,32 +43,26 @@ class Keyboard:
     def key_collect_data(self, e):
         rospy.loginfo(e)
         self.collect_data ^= True
-        self.publish()
 
     def key_selfdriving(self, e):
         rospy.loginfo(e)
         self.self_driving_state ^= True
-        self.publish()
 
     def shift_gear_no_command(self, e):
         rospy.loginfo("Gear: No command")
         self.gear = Control.NO_COMMAND
-        self.publish()
 
     def shift_gear_neutral(self, e):
         rospy.loginfo("Gear: Neutral")
         self.gear = Control.NEUTRAL
-        self.publish()
 
     def shift_gear_forward(self, e):
         rospy.loginfo("Gear: Forwad")
         self.gear = Control.FORWARD
-        self.publish()
 
     def shift_gear_reverse(self, e):
         rospy.loginfo("Gear: Reverse")
         self.gear = Control.REVERSE
-        self.publish()
 
     def speed_up(self, e):
         rospy.loginfo(e)
@@ -73,8 +70,7 @@ class Keyboard:
         if self.throttle >= 1.:
             self.throttle = 1.0
         else:
-            self.throttle += 0.1
-        self.publish()
+            self.throttle += self.throttle_change_increment
 
     def brake(self, e):
         rospy.loginfo(e)
@@ -82,47 +78,46 @@ class Keyboard:
         if self.var_brake >= 1:
             self.var_brake = 1.0
         else:
-            self.var_brake += 0.1
-
-        self.publish()
+            self.var_brake += self.brake_change_increment
 
     def turn_left(self, e):
         rospy.loginfo(e)
-        if self.steer >= 1:
+        if self.steer >= 1.:
             self.steer = 1.0
         else:
-            self.steer += 0.1
-        self.publish()
+            self.steer += self.steer_change_increment
 
     def turn_right(self, e):
         rospy.loginfo(e)
-        if self.steer <= -1:
+        if self.steer <= -1.:
             self.steer = -1.0
         else:
-            self.steer += -0.1
-        self.publish()
+            self.steer -= self.steer_change_increment
 
-    def publish(self, event=None):
+    def publish_control(self, event=None):
         stamp = rospy.Time.now()
 
         # FILL CONTROL
-        self.control_msg.header.stamp = stamp
-        self.control_msg.brake = self.var_brake
-        self.control_msg.throttle = self.throttle
-        self.control_msg.steer = self.steer
-        self.control_msg.shift_gears = self.gear
+        control_msg = Control()
+        control_msg.header.stamp = stamp
+        control_msg.brake = self.var_brake
+        control_msg.throttle = self.throttle
+        control_msg.steer = self.steer
+        control_msg.shift_gears = self.gear
 
         # FILL MODE
-        self.mode_msg.header.stamp = stamp
-        self.mode_msg.selfdriving = self.self_driving_state
-        self.mode_msg.collect = self.collect_data
+        mode_msg = Mode()
+        mode_msg.header.stamp = stamp
+        mode_msg.selfdriving = self.self_driving_state
+        mode_msg.collect = self.collect_data
 
         # PUBLISH
-        self.control_pub.publish(self.control_msg)
-        self.mode_pub.publish(self.mode_msg)
-
+        self.control_pub.publish(control_msg)
+        self.mode_pub.publish(mode_msg)
+        
 
 if __name__ == '__main__':
-    rospy.init_node('controler_node')
-    keyboard = Keyboard()
+    rospy.init_node("controller_node")
+    k = Keyboard()
+    rospy.Timer(rospy.Duration(1.0 / 30.0), k.publish_control)
     rospy.spin()
