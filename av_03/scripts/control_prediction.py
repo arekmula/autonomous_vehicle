@@ -16,15 +16,18 @@ class Predictor:
 
     def __init__(self, model_path=None):
 
-        self.model_path = self.PATH_TO_ROS_PACKAGE + "/cnn_models/model.h5"
+        self.model_path = self.PATH_TO_ROS_PACKAGE + "/cnn_models/model1.h5"
         if model_path is not None:
             self.model_path = model_path
 
         # Load model
-        model = tf.keras.models.load_model(self.model_path)
-
-        # Print model summary
-        print(model.summary())
+        try:
+            model = tf.keras.models.load_model(self.model_path)
+            # Print model summary
+            print(model.summary())
+        except IOError as e:
+            # Handle the exception if model wasn't read correctly
+            print(e)
 
 
 if __name__ == '__main__':

@@ -45,6 +45,7 @@ C$ ls
 ## Running the package
 - Run the docker container
 - Go to the workspace directory
+- Download the trained model and put it in `cnn_models` in `av_03` package 
 - Build catkin package
 ```
 C$ catkin build
