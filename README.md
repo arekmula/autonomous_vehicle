@@ -47,15 +47,15 @@ C$ ls
 - Go to the workspace directory
 - Build catkin package
 ```
-catkin build
+C$ catkin build
 ```
 - Source the environment
 ```
-source devel/setup.bash
+C$ source devel/setup.bash
 ```
 - Launch the demo
 ```
-roslaunch av_03 av.launch
+C$ roslaunch av_03 av.launch
 ```
 
 ## Saving docker container
