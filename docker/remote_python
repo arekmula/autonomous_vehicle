@@ -1,0 +1,4 @@
+#!/bin/bash -l
+source /opt/ros/$ROS_DISTRO/setup.bash
+source /av_ws/devel/setup.bash
+/usr/bin/python "$@"

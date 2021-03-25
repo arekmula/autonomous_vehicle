@@ -205,3 +205,6 @@ CATKIN_IGNORE
 # Editors
 .vscode/
 .idea/
+
+# Tensorflow model
+*.h5

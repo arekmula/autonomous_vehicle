@@ -37,7 +37,7 @@
     <node pkg="av_03" type="collector_node.py" name="collector_node" output="screen" />
 
     <!-- Run control_prediction node -->
-    <!--<node pkg="av" type="control_prediction" name="control_prediction_node" output="screen" />-->
+    <node pkg="av_03" type="control_prediction.py" name="control_prediction_node" output="screen" />
 
     <!--Run visualizer node -->
     <node pkg="av_03" type="visualizer_node.py" name="visualizer_node" output="screen" />
