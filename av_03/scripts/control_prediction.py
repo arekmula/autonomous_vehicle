@@ -5,7 +5,7 @@ import rospy
 import rospkg
 
 from prius_msgs.msg import Control
-from av_msgs.msg import Mode
+from av_msgs.msg import Mode, States
 from sensor_msgs.msg import Image
 
 # Python imports
@@ -13,7 +13,7 @@ import tensorflow as tf
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
-
+from simple_pid import PID
 
 
 class Predictor:
@@ -24,10 +24,14 @@ class Predictor:
 
 
     def __init__(self, model_path=None):
+        self.pid = PID(1, 0.0, 0.0, setpoint=1)
+        self.pid.output_limits = (-1, 1)
+
         self.session = tf.compat.v1.keras.backend.get_session()
 
         self.mode_sub = rospy.Subscriber("/pruis/mode", Mode, self.mode_callback)
         self.front_img_sub = rospy.Subscriber("/prius/front_camera/image_raw", Image, self.front_camera_callback, queue_size=1)
+        self.states_sub = rospy.Subscriber("/prius/states", States, self.states_callback, queue_size=1)
 
         self.control_prediction_pub = rospy.Publisher("/prius", Control, queue_size=1)
 
@@ -35,6 +39,7 @@ class Predictor:
         self.model_output = 0.0
         self.angle_prediction = 0.0
         self.velocity_prediction = 0.0
+        self.velocity = 0.0
         self.test = 0.0
         # self.last_published_time = rospy.get_rostime()
         # self.last_published = None
@@ -58,16 +63,27 @@ class Predictor:
     #     if self.last_published and self.last_published_time < rospy.get_rostime() + rospy.Duration(1.0 / 0.1):
     #         self.front_camera_callback(self.last_published)
 
+    def states_callback(self, data):
+        # print("data", data)
+        self.velocity = data.velocity
+
     def mode_callback(self, data):
 
         stamp = rospy.Time.now()
+
+        target_velocity = self.velocity_prediction * 130
+        self.pid.setpoint = target_velocity
+        output = self.pid(self.velocity)
+        print("vel:", self.velocity, "target_velocity:", target_velocity, "pid output:", output)
+
+
 
         control_msg = Control()
 
         control_msg.header.stamp = stamp
         control_msg.brake = 0.0
-        control_msg.throttle = 0.9
-        control_msg.steer = 0.0
+        control_msg.throttle = output
+        control_msg.steer = self.angle_prediction
         control_msg.shift_gears = Control.NO_COMMAND
 
         self.control_prediction_pub.publish(control_msg)
@@ -81,10 +97,8 @@ class Predictor:
             except CvBridgeError as e:
                 print(e)
 
-        print(cv_image.shape)
+
         img = cv2.resize(cv_image, (200, 200)).astype(np.float32)/255
-        print(img.shape)
-        # print(img)
 
         with self.session.graph.as_default():
             tf.compat.v1.keras.backend.set_session(self.session)
@@ -93,7 +107,7 @@ class Predictor:
             self.angle_prediction = self.model_output[0][0]
             self.velocity_prediction = self.model_output[0][1]
 
-            print(self.angle_prediction, self.velocity_prediction)
+            print("angle: ", self.angle_prediction, "velocity: ", self.velocity_prediction)
 
 
 
@@ -103,3 +117,5 @@ if __name__ == '__main__':
     rospy.spin()
 
 # rostopic pub --once /pruis/mode av_msgs/Mode "{header:{seq: 0, stamp:{secs: 0, nsecs: 0}, frame_id: ''}, selfdriving: true, collect: false}"
+# rostopic pub --r 10 /pruis/mode av_msgs/Mode "{header:{seq: 0, stamp:{secs: 0, nsecs: 0}, frame_id: ''}, selfdriving: true, collect: false}"
+
