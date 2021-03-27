@@ -24,28 +24,28 @@ class Predictor:
 
 
     def __init__(self, model_path=None):
-        self.pid = PID(1, 0.0, 0.0, setpoint=1)
-        self.pid.output_limits = (-1, 1)
 
-        self.session = tf.compat.v1.keras.backend.get_session()
-
+        # Subscribers
         self.mode_sub = rospy.Subscriber("/pruis/mode", Mode, self.mode_callback)
         self.front_img_sub = rospy.Subscriber("/prius/front_camera/image_raw", Image, self.front_camera_callback, queue_size=1)
         self.states_sub = rospy.Subscriber("/prius/states", States, self.states_callback, queue_size=1)
 
+        # Publishers
         self.control_prediction_pub = rospy.Publisher("/prius", Control, queue_size=1)
 
+        # PID
+        self.pid = PID(1, 0.0, 0.0, setpoint=1)
+        self.pid.output_limits = (0, 1)
+
         self.cv_bridge = CvBridge()
+
         self.model_output = 0.0
         self.angle_prediction = 0.0
         self.velocity_prediction = 0.0
-        self.velocity = 0.0
-        self.test = 0.0
-        # self.last_published_time = rospy.get_rostime()
-        # self.last_published = None
-        # self.timer = rospy.Timer(rospy.Duration(1. / 0.1), self.timer_callback)
+        self.velocity_measure = 0.0
 
         self.model = None
+        self.session = tf.compat.v1.keras.backend.get_session()
         self.model_path = self.PATH_TO_ROS_PACKAGE + "/cnn_models/model.h5"
         if model_path is not None:
             self.model_path = model_path
@@ -58,31 +58,33 @@ class Predictor:
         except IOError as e:
             # Handle the exception if model wasn't read correctly
             print(e)
-    #
-    # def timer_callback(self, event):
-    #     if self.last_published and self.last_published_time < rospy.get_rostime() + rospy.Duration(1.0 / 0.1):
-    #         self.front_camera_callback(self.last_published)
+
 
     def states_callback(self, data):
-        # print("data", data)
-        self.velocity = data.velocity
+        # save measured velocity
+        self.velocity_measure = data.velocity
 
     def mode_callback(self, data):
 
         stamp = rospy.Time.now()
 
+        # calculate target velocity
         target_velocity = self.velocity_prediction * 130
+        # pid
         self.pid.setpoint = target_velocity
-        output = self.pid(self.velocity)
-        print("vel:", self.velocity, "target_velocity:", target_velocity, "pid output:", output)
-
+        pid_output = self.pid(self.velocity_measure)
+        print("velocity measure:", self.velocity_measure, "target velocity:", target_velocity, "pid output:", pid_output)
 
 
         control_msg = Control()
 
         control_msg.header.stamp = stamp
-        control_msg.brake = 0.0
-        control_msg.throttle = output
+        # control_msg.brake = 0.0
+        control_msg.throttle = pid_output
+        if self.angle_prediction > 0:
+            self.angle_prediction = 1
+        if self.angle_prediction < 0:
+            self.angle_prediction = -1
         control_msg.steer = self.angle_prediction
         control_msg.shift_gears = Control.NO_COMMAND
 
