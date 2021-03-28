@@ -22,6 +22,8 @@ class Predictor:
     rospack = rospkg.RosPack()
     PATH_TO_ROS_PACKAGE = rospack.get_path("av_03")  # Get path of current ros package
 
+    Y_OFFSET = 288
+    Y_HEIGHT = 264
 
     def __init__(self, model_path=None):
 
@@ -81,8 +83,8 @@ class Predictor:
             except CvBridgeError as e:
                 print(e)
 
-
-        img = cv2.resize(cv_image, (200, 200)).astype(np.float32)/255
+        img = cv_image[self.Y_OFFSET:self.Y_OFFSET + self.Y_HEIGHT, :]
+        img = img.astype(np.float32)/255
 
         with self.session.graph.as_default():
             tf.compat.v1.keras.backend.set_session(self.session)
