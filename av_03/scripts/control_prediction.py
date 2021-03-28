@@ -35,7 +35,7 @@ class Predictor:
 
         # PID
         self.pid = PID(1, 0.0, 0.0, setpoint=1)
-        self.pid.output_limits = (0, 1)
+        self.pid.output_limits = (-1, 1)
 
         self.cv_bridge = CvBridge()
 
@@ -79,13 +79,22 @@ class Predictor:
         control_msg = Control()
 
         control_msg.header.stamp = stamp
-        # control_msg.brake = 0.0
-        control_msg.throttle = pid_output
+
+        # angle
         if self.angle_prediction > 0:
             self.angle_prediction = 1
         if self.angle_prediction < 0:
             self.angle_prediction = -1
         control_msg.steer = self.angle_prediction
+
+        # velocity
+        if pid_output > 0:
+            control_msg.throttle = pid_output
+            control_msg.brake = 0.0
+        if pid_output <= 0:
+            control_msg.brake = pid_output * (-1)
+            control_msg.throttle = 0.0
+
         control_msg.shift_gears = Control.NO_COMMAND
 
         self.control_prediction_pub.publish(control_msg)
