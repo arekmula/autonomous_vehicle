@@ -202,7 +202,7 @@ def main(args):
 
     # Create and train the model
     trainer = ModelTrainer(generators)
-    model = trainer.create_model_from_article()
+    model = trainer.create_model()
     model.summary()
     training = trainer.train(model=model,
                              epochs=args.epochs,
