@@ -31,7 +31,7 @@ def print_trainnig_info(args):
     print(f"Keras version: {keras.__version__}")
     print("")
     print("Training stats:\n")
-    print(f"Input image size: {args.input_shape}x{args.input_shape}")
+    print(f"Input image size: {args.input_width}x{args.input_height}")
     print(f"Epochs : {args.epochs}")
     print(f"Batch size : {args.batch_size}")
     print(f"Validation split : {args.val_split}")
@@ -43,14 +43,16 @@ class Generators:
     Train, validation and test generators
     """
 
-    def __init__(self, train_data_path, test_data_path, train_df, test_df, input_shape, batch_size, color_mode, val_split):
+    def __init__(self, train_data_path, test_data_path, train_df, test_df, input_height, input_width,
+                 batch_size, color_mode, val_split):
         self.batch_size = batch_size
         self.color_mode = color_mode
-        self.input_shape = input_shape
+        self.input_height = input_height
+        self.input_width = input_width
         if color_mode == 'grayscale':
-            self.img_shape = (self.input_shape, self.input_shape, 1)
+            self.img_shape = (self.input_height, self.input_width, 1)
         else:
-            self.img_shape = (self.input_shape, self.input_shape, 3)
+            self.img_shape = (self.input_height, self.input_width, 3)
 
         # Base train/validation generator
         _datagen = ImageDataGenerator(
@@ -147,14 +149,14 @@ class ModelTrainer:
         validation_steps = self.generators.valid_generator.n // self.generators.batch_size
 
         # Save the best model during the traning
-        checkpointer = ModelCheckpoint('best_model1.h5',
+        checkpointer = ModelCheckpoint('model-{epoch:.02d}-{val_loss:.2f}',
                                        monitor='val_mean_absolute_error',
                                        verbose=verb,
-                                       save_best_only=True,
+                                       save_best_only=False,
                                        mode='min')
 
         # We'll stop training if no improvement after some epochs
-        earlystopper = EarlyStopping(monitor='val_mean_absolute_error', patience=10, verbose=1)
+        earlystopper = EarlyStopping(monitor='val_mean_absolute_error', patience=25, verbose=1, mode="min")
         reduce_lr = ReduceLROnPlateau(monitor='val_mean_absolute_error', factor=0.5, patience=5,
                                       verbose=1, mode='min', min_lr=0.00001)
 
@@ -191,7 +193,8 @@ def main(args):
                             test_data_path=None,
                             train_df=labels,
                             test_df=None,
-                            input_shape=args.input_shape,
+                            input_height=args.input_height,
+                            input_width=args.input_width,
                             batch_size=args.batch_size,
                             color_mode=args.input_color_mode,
                             val_split=args.val_split)
@@ -208,13 +211,29 @@ def main(args):
                              epochs=args.epochs,
                              verb=args.verbose)
 
+def allow_memory_growth():
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
 
 if __name__ == "__main__":
+    allow_memory_growth()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--train_data_path', type=str, help='Path to train images', required=True)
     parser.add_argument('--train_labels_path', type=str, help='Path to train labels', required=True)
     parser.add_argument('--test_data_path', type=str, help='Path to test images')
-    parser.add_argument('--input_shape', type=int, help='Shape of input image for CNN', default=200)
+    parser.add_argument('--input_height', type=int, help='Height of input image for CNN', default=264)
+    parser.add_argument('--input_width', type=int, help='Width of input image for CNN', default=800)
     parser.add_argument('--val_split', type=float, help='Split between train and validation dataset', default=0.2)
     parser.add_argument('--epochs', type=int, help='Number of epochs of net training', default=2)
     parser.add_argument('--batch_size', type=int, help='Input batch size to network', default=128)
