@@ -44,6 +44,9 @@ class Predictor:
         self.velocity_prediction = 0.0
         self.velocity_measure = 0.0
 
+        # selfdriving mode
+        self.selfdrive = False
+
         self.model = None
         self.session = tf.compat.v1.keras.backend.get_session()
         self.model_path = self.PATH_TO_ROS_PACKAGE + "/cnn_models/model.h5"
@@ -59,46 +62,16 @@ class Predictor:
             # Handle the exception if model wasn't read correctly
             print(e)
 
-
     def states_callback(self, data):
         # save measured velocity
         self.velocity_measure = data.velocity
 
     def mode_callback(self, data):
-
-        stamp = rospy.Time.now()
-
-        # calculate target velocity
-        target_velocity = self.velocity_prediction * 130
-        # pid
-        self.pid.setpoint = target_velocity
-        pid_output = self.pid(self.velocity_measure)
-        print("velocity measure:", self.velocity_measure, "target velocity:", target_velocity, "pid output:", pid_output)
-
-
-        control_msg = Control()
-
-        control_msg.header.stamp = stamp
-
-        # angle
-        if self.angle_prediction > 0:
-            self.angle_prediction = 1
-        if self.angle_prediction < 0:
-            self.angle_prediction = -1
-        control_msg.steer = self.angle_prediction
-
-        # velocity
-        if pid_output > 0:
-            control_msg.throttle = pid_output
-            control_msg.brake = 0.0
-        if pid_output <= 0:
-            control_msg.brake = pid_output * (-1)
-            control_msg.throttle = 0.0
-
-        control_msg.shift_gears = Control.NO_COMMAND
-
-        self.control_prediction_pub.publish(control_msg)
-
+        # set selfdriving mode
+        if data.selfdriving == True:
+            self.selfdrive = True
+        if data.selfdriving == False:
+            self.selfdrive = False
 
     def front_camera_callback(self, data):
 
@@ -113,13 +86,40 @@ class Predictor:
 
         with self.session.graph.as_default():
             tf.compat.v1.keras.backend.set_session(self.session)
-            self.model_output = self.model.predict_on_batch(img[np.newaxis, :])
+
+            self.model_output = self.model.predict(img[np.newaxis, :])
 
             self.angle_prediction = self.model_output[0][0]
             self.velocity_prediction = self.model_output[0][1]
 
             print("angle: ", self.angle_prediction, "velocity: ", self.velocity_prediction)
 
+        stamp = rospy.Time.now()
+
+        # calculate target velocity
+        target_velocity = self.velocity_prediction * self.VEHICLE_MAX_SPEED
+        # pid
+        self.pid.setpoint = target_velocity
+        pid_output = self.pid(self.velocity_measure)
+        print("velocity measure:", self.velocity_measure, "target velocity:", target_velocity, "pid output:", pid_output)
+
+
+        control_msg = Control()
+        control_msg.header.stamp = stamp
+        # angle
+        control_msg.steer = self.angle_prediction
+        # velocity
+        if pid_output >= 0:
+            control_msg.throttle = pid_output
+            control_msg.brake = 0.0
+        if pid_output < 0:
+            control_msg.brake = pid_output * (-1)
+            control_msg.throttle = 0.0
+
+        control_msg.shift_gears = Control.NO_COMMAND
+
+        if self.selfdrive == True:
+            self.control_prediction_pub.publish(control_msg)
 
 
 if __name__ == '__main__':
