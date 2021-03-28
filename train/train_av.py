@@ -31,6 +31,7 @@ def print_trainnig_info(args):
     print(f"Keras version: {keras.__version__}")
     print("")
     print("Training stats:\n")
+    print(f"Input image size: {args.input_shape}x{args.input_shape}")
     print(f"Epochs : {args.epochs}")
     print(f"Batch size : {args.batch_size}")
     print(f"Validation split : {args.val_split}")
@@ -64,6 +65,7 @@ class Generators:
             x_col="img_name",
             y_col=['steer', 'velocity_normalized'],
             class_mode="raw",
+            shuffle=True,
             target_size=(self.img_shape[0], self.img_shape[1]),
             color_mode=self.color_mode,
             batch_size=self.batch_size)
@@ -77,6 +79,7 @@ class Generators:
             x_col="img_name",
             y_col=['steer', 'velocity_normalized'],
             class_mode="raw",
+            shuffle=True,
             target_size=(self.img_shape[0], self.img_shape[1]),
             color_mode=self.color_mode,
             batch_size=self.batch_size)
@@ -111,7 +114,7 @@ class ModelTrainer:
         self.img_height = generators.img_shape[1]
         self.img_depth = generators.img_shape[2]
 
-    def create_model_from_article(self):
+    def create_model(self):
         """
         Build CNN model using img_width, img_height from fields.
         https://www.researchgate.net/publication/334080652_Self-Driving_Car_Steering_Angle_Prediction_Based_On_Deep_Neural_Network_An_Example_Of_CarND_Udacity_Simulator
