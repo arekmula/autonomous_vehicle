@@ -18,18 +18,17 @@ from simple_pid import PID
 
 class Predictor:
     VEHICLE_MAX_SPEED = 130  # Maximum speed of a car in km
+    Y_OFFSET = 288
+    Y_HEIGHT = 264
 
     rospack = rospkg.RosPack()
     PATH_TO_ROS_PACKAGE = rospack.get_path("av_03")  # Get path of current ros package
 
-    Y_OFFSET = 288
-    Y_HEIGHT = 264
-
     def __init__(self, model_path=None):
-
         # Subscribers
         self.mode_sub = rospy.Subscriber("/pruis/mode", Mode, self.mode_callback)
-        self.front_img_sub = rospy.Subscriber("/prius/front_camera/image_raw", Image, self.front_camera_callback, queue_size=1)
+        self.front_img_sub = rospy.Subscriber("/prius/front_camera/image_raw", Image, self.front_camera_callback,
+                                              queue_size=1)
         self.states_sub = rospy.Subscriber("/prius/states", States, self.states_callback, queue_size=1)
 
         # Publishers
@@ -46,12 +45,11 @@ class Predictor:
         self.velocity_prediction = 0.0
         self.velocity_measure = 0.0
 
-        # selfdriving mode
-        self.selfdrive = False
+        self.selfdrive_mode = False
 
         self.model = None
         self.session = tf.compat.v1.keras.backend.get_session()
-        self.model_path = self.PATH_TO_ROS_PACKAGE + "/cnn_models/model.h5"
+        self.model_path = self.PATH_TO_ROS_PACKAGE + "/cnn_models/model.hdf5"
         if model_path is not None:
             self.model_path = model_path
 
@@ -70,21 +68,21 @@ class Predictor:
 
     def mode_callback(self, data):
         # set selfdriving mode
-        if data.selfdriving == True:
-            self.selfdrive = True
-        if data.selfdriving == False:
-            self.selfdrive = False
+        self.selfdrive_mode = data.selfdriving
 
     def front_camera_callback(self, data):
-
         if data is not None:
             try:
                 cv_image = self.cv_bridge.imgmsg_to_cv2(data, "bgr8")
             except CvBridgeError as e:
                 print(e)
 
+        self.predict_control(cv_image)
+        self.calcucate_control()
+
+    def predict_control(self, cv_image):
         img = cv_image[self.Y_OFFSET:self.Y_OFFSET + self.Y_HEIGHT, :]
-        img = img.astype(np.float32)/255
+        img = img.astype(np.float32) / 255
 
         with self.session.graph.as_default():
             tf.compat.v1.keras.backend.set_session(self.session)
@@ -94,8 +92,9 @@ class Predictor:
             self.angle_prediction = self.model_output[0][0]
             self.velocity_prediction = self.model_output[0][1]
 
-            print("angle: ", self.angle_prediction, "velocity: ", self.velocity_prediction)
+            print("angle prediction: ", self.angle_prediction, "velocity prediction: ", self.velocity_prediction)
 
+    def calcucate_control(self):
         stamp = rospy.Time.now()
 
         # calculate target velocity
@@ -103,8 +102,8 @@ class Predictor:
         # pid
         self.pid.setpoint = target_velocity
         pid_output = self.pid(self.velocity_measure)
-        print("velocity measure:", self.velocity_measure, "target velocity:", target_velocity, "pid output:", pid_output)
-
+        print("velocity measure:", self.velocity_measure, "target velocity:", target_velocity, "pid output:",
+              pid_output)
 
         control_msg = Control()
         control_msg.header.stamp = stamp
@@ -120,15 +119,10 @@ class Predictor:
 
         control_msg.shift_gears = Control.NO_COMMAND
 
-        if self.selfdrive == True:
+        if self.selfdrive_mode:
             self.control_prediction_pub.publish(control_msg)
-
 
 if __name__ == '__main__':
     rospy.init_node("control_prediction")
     predictor = Predictor()
     rospy.spin()
-
-# rostopic pub --once /pruis/mode av_msgs/Mode "{header:{seq: 0, stamp:{secs: 0, nsecs: 0}, frame_id: ''}, selfdriving: true, collect: false}"
-# rostopic pub --r 10 /pruis/mode av_msgs/Mode "{header:{seq: 0, stamp:{secs: 0, nsecs: 0}, frame_id: ''}, selfdriving: true, collect: false}"
-
