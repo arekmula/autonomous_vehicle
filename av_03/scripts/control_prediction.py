@@ -38,7 +38,7 @@ class Predictor:
         self.pid_velocity.output_limits = (-1, 1)
 
         # PID steering
-        self.pid_steering = PID(9, 0.0, 0.0, setpoint=0)
+        self.pid_steering = PID(5, 0.0, 0.0, setpoint=0)
         self.pid_steering.output_limits = (-1, 1)
 
         self.cv_bridge = CvBridge()
