@@ -1,16 +1,7 @@
 # Basics
 import pandas as pd
-import numpy as np
 import argparse
 from pathlib import Path
-
-# Charts
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# ML, statistics
-import scipy
-from sklearn import metrics
 
 # Tensorflow
 import tensorflow as tf
@@ -18,24 +9,48 @@ from tensorflow import keras
 from tensorflow.keras import losses
 from tensorflow.keras import metrics
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, BatchNormalization
-from tensorflow.keras.layers import Dense, Dropout, Flatten, Activation
+from tensorflow.keras.layers import Conv2D, BatchNormalization, Dense, Dropout, Flatten
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
 
-def print_trainnig_info(args):
+def print_training_info(arg):
     print("Running with: ")
     print(f"TF version: {tf.__version__}")
     print(f"Keras version: {keras.__version__}")
     print("")
-    print("Training stats:\n")
-    print(f"Input image size: {args.input_width}x{args.input_height}")
-    print(f"Epochs : {args.epochs}")
-    print(f"Batch size : {args.batch_size}")
-    print(f"Validation split : {args.val_split}")
-    print(f"Input color mode : {args.input_color_mode}")
+    print("Training info:\n")
+    print(f"Network architecture: {arg.net_model}")
+    print(f"Input image size: {arg.input_width}x{arg.input_height}")
+    print(f"Epochs : {arg.epochs}")
+    print(f"Batch size : {arg.batch_size}")
+    print(f"Validation split : {arg.val_split}")
+    print(f"Input color mode : {arg.input_color_mode}")
+
+
+def allow_memory_growth():
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
+
+def prepare_labels(train_labels_path):
+    max_velocity = 130.0  # [Km]
+    labels_path = Path(train_labels_path)
+    labels = pd.read_csv(labels_path)[['img_name', 'steer', 'velocity']]
+    # normalize speed
+    labels['velocity_normalized'] = labels.loc[:, 'velocity'] / max_velocity
+
+    return labels
 
 
 class Generators:
@@ -115,13 +130,16 @@ class ModelTrainer:
         self.img_width = generators.img_shape[0]
         self.img_height = generators.img_shape[1]
         self.img_depth = generators.img_shape[2]
+        self.model = None
+        self.optimizer = None
+        self.loss = None
 
-    def create_model(self):
+    def create_improved_pilot_net(self):
         """
         Build CNN model using img_width, img_height from fields.
         https://www.researchgate.net/publication/334080652_Self-Driving_Car_Steering_Angle_Prediction_Based_On_Deep_Neural_Network_An_Example_Of_CarND_Udacity_Simulator
         """
-        model = Sequential([
+        self.model = Sequential([
             Conv2D(input_shape=(self.img_width, self.img_height, self.img_depth), filters=8, kernel_size=(9, 9),
                    strides=(3, 3), activation='elu', padding='valid'),
             BatchNormalization(),
@@ -134,95 +152,103 @@ class ModelTrainer:
             Dense(50, activation='elu'),
             Dense(2, activation='linear')
         ])
-        loss = losses.MeanAbsoluteError()
-        optimizer = Adam(lr=0.0001)
+        self.loss = losses.MeanAbsoluteError()
+        self.optimizer = Adam(lr=0.0001)
         metrics_to_monitor = [metrics.MeanAbsoluteError(), metrics.MeanSquaredError()]
-        model.compile(optimizer=optimizer, loss=loss, metrics=metrics_to_monitor)
+        self.model.compile(optimizer=self.optimizer, loss=self.loss, metrics=metrics_to_monitor)
+        self.model.summary()
 
-        return model
+    def create_pilot_net(self, scale):
+        """
+        Nvidia PilotNetsel
+        paper : https://arxiv.org/pdf/2010.08776.pdf
 
-    def train(self, model, epochs: int, verb: int):
+        @param scale - resize the network, 1.0 -> paper, 0.5 -> half of neurons
+
+        """
+
+        self.model = Sequential([
+            Conv2D(input_shape=(self.img_width, self.img_height, self.img_depth), filters=int(24 * scale),
+                   kernel_size=(5, 5),
+                   strides=(2, 2), activation='elu', padding='valid'),
+            Conv2D(filters=int(36 * scale), kernel_size=(5, 5), strides=(2, 2), activation='elu', padding='valid'),
+            Conv2D(filters=int(48 * scale), kernel_size=(5, 5), strides=(3, 2), activation='elu', padding='valid'),
+            Conv2D(filters=int(64 * scale), kernel_size=(3, 3), strides=(1, 1), activation='elu', padding='valid'),
+            Conv2D(filters=int(64 * scale), kernel_size=(3, 3), strides=(1, 1), activation='elu', padding='same'),
+            Flatten(),
+            Dense(int(1164 * scale), activation='elu'),
+            Dense(int(100 * scale), activation='elu'),
+            Dense(int(50 * scale), activation='elu'),
+            Dense(int(10 * scale), activation='elu'),
+            Dense(2)
+        ])
+
+        self.loss = losses.MeanSquaredError()
+        self.optimizer = Adam(lr=0.001)
+        metrics_to_monitor = [metrics.MeanAbsoluteError(), metrics.MeanSquaredError()]
+        self.model.compile(optimizer=self.optimizer, loss=self.loss, metrics=metrics_to_monitor)
+        self.model.summary()
+
+    def train(self, epochs: int, verb: int):
         """
         Train the model
         """
         steps_per_epoch = self.generators.train_generator.n // self.generators.batch_size
         validation_steps = self.generators.valid_generator.n // self.generators.batch_size
 
-        # Save the best model during the traning
-        checkpointer = ModelCheckpoint('model-{epoch:02d}-{val_loss:.2f}',
-                                       monitor='val_mean_absolute_error',
+        # Save the best model during the training
+        metrics_to_monitor = "'val_" + self.loss.name
+        checkpointer = ModelCheckpoint('model-{epoch:02d}-{val_loss:.4f}.hdf5',
+                                       monitor=metrics_to_monitor,
                                        verbose=verb,
-                                       save_best_only=False,
+                                       save_best_only=True,
                                        mode='min')
 
         # We'll stop training if no improvement after some epochs
-        earlystopper = EarlyStopping(monitor='val_mean_absolute_error', patience=25, verbose=1, mode="min")
-        reduce_lr = ReduceLROnPlateau(monitor='val_mean_absolute_error', factor=0.5, patience=5,
+        earlystopper = EarlyStopping(monitor=metrics_to_monitor, patience=25, verbose=1, mode="min")
+        reduce_lr = ReduceLROnPlateau(monitor=metrics_to_monitor, factor=0.5, patience=5,
                                       verbose=1, mode='min', min_lr=0.00001)
 
         # Train
-        training = model.fit(self.generators.train_generator,
-                             epochs=epochs,
-                             steps_per_epoch=steps_per_epoch,
-                             validation_data=self.generators.valid_generator,
-                             validation_steps=validation_steps,
-                             callbacks=[earlystopper, reduce_lr, checkpointer],
-                             verbose=verb
-                             )
-        # Get the best saved weights
-        # model.load_weights('best_model1.h5')
+        training = self.model.fit(self.generators.train_generator,
+                                  epochs=epochs,
+                                  steps_per_epoch=steps_per_epoch,
+                                  validation_data=self.generators.valid_generator,
+                                  validation_steps=validation_steps,
+                                  callbacks=[earlystopper, reduce_lr, checkpointer],
+                                  verbose=verb
+                                  )
         return training
 
 
-def preapare_labels(train_labels_path):
-    MAX_VELOCITY = 130.0  # [Km]
-    labels_path = Path(train_labels_path)
-    labels = pd.read_csv(labels_path)[['img_name', 'steer', 'velocity']]
-    # normalize speed
-    labels['velocity_normalized'] = labels.loc[:, 'velocity'] / MAX_VELOCITY
-
-    return labels
-
-
-def main(args):
-    labels = preapare_labels(args.train_labels_path)
-    print(labels)
+def main(arg):
+    labels = prepare_labels(arg.train_labels_path)
 
     # Create generators
-    generators = Generators(train_data_path=args.train_data_path,
+    generators = Generators(train_data_path=arg.train_data_path,
                             test_data_path=None,
                             train_df=labels,
                             test_df=None,
-                            input_height=args.input_height,
-                            input_width=args.input_width,
-                            batch_size=args.batch_size,
-                            color_mode=args.input_color_mode,
-                            val_split=args.val_split)
+                            input_height=arg.input_height,
+                            input_width=arg.input_width,
+                            batch_size=arg.batch_size,
+                            color_mode=arg.input_color_mode,
+                            val_split=arg.val_split)
     print("\nGenerators created !!")
 
-    print_trainnig_info(args)
+    print_training_info(arg)
     input("Press any key to continue...")
 
     # Create and train the model
     trainer = ModelTrainer(generators)
-    model = trainer.create_model()
-    model.summary()
-    training = trainer.train(model=model,
-                             epochs=args.epochs,
-                             verb=args.verbose)
+    if arg.net_model == 'PilotNet':
+        trainer.create_pilot_net(scale=1.0)
+    elif arg.net_model == 'ImpPilotNet':
+        trainer.create_improved_pilot_net()
+    else:
+        raise NotImplementedError("Choose from available models, check train_av.py --help")
 
-def allow_memory_growth():
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-        try:
-            # Currently, memory growth needs to be the same across GPUs
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-        except RuntimeError as e:
-            # Memory growth must be set before GPUs have been initialized
-            print(e)
+    _ = trainer.train(epochs=arg.epochs, verb=arg.verbose)
 
 
 if __name__ == "__main__":
@@ -239,5 +265,8 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, help='Input batch size to network', default=128)
     parser.add_argument('--input_color_mode', type=str, help='rgb or grayscale input to network', default='rgb')
     parser.add_argument('--verbose', type=int, help='Verbosity of code', default=1)
+    parser.add_argument('--net_model', type=str,
+                        help='Choose between Improved PilotNet -> ImpPilotNet, Nvidia PilotNet -> PilotNet',
+                        default='ImpPilotNet')
     args, _ = parser.parse_known_args()
     main(args)
