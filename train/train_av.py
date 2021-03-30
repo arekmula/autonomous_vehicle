@@ -9,8 +9,7 @@ from tensorflow import keras
 from tensorflow.keras import losses
 from tensorflow.keras import metrics
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.layers import Conv2D, BatchNormalization
-from tensorflow.keras.layers import Dense, Dropout, Flatten
+from tensorflow.keras.layers import Conv2D, BatchNormalization, Dense, Dropout, Flatten
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
@@ -28,6 +27,30 @@ def print_training_info(arg):
     print(f"Batch size : {arg.batch_size}")
     print(f"Validation split : {arg.val_split}")
     print(f"Input color mode : {arg.input_color_mode}")
+
+
+def allow_memory_growth():
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
+
+def prepare_labels(train_labels_path):
+    max_velocity = 130.0  # [Km]
+    labels_path = Path(train_labels_path)
+    labels = pd.read_csv(labels_path)[['img_name', 'steer', 'velocity']]
+    # normalize speed
+    labels['velocity_normalized'] = labels.loc[:, 'velocity'] / max_velocity
+
+    return labels
 
 
 class Generators:
@@ -111,7 +134,7 @@ class ModelTrainer:
         self.optimizer = None
         self.loss = None
 
-    def create_ImprovedPilotNet(self):
+    def create_improved_pilot_net(self):
         """
         Build CNN model using img_width, img_height from fields.
         https://www.researchgate.net/publication/334080652_Self-Driving_Car_Steering_Angle_Prediction_Based_On_Deep_Neural_Network_An_Example_Of_CarND_Udacity_Simulator
@@ -135,7 +158,7 @@ class ModelTrainer:
         self.model.compile(optimizer=self.optimizer, loss=self.loss, metrics=metrics_to_monitor)
         self.model.summary()
 
-    def create_PilotNET(self, scale):
+    def create_pilot_net(self, scale):
         """
         Nvidia PilotNetsel
         paper : https://arxiv.org/pdf/2010.08776.pdf
@@ -174,15 +197,16 @@ class ModelTrainer:
         validation_steps = self.generators.valid_generator.n // self.generators.batch_size
 
         # Save the best model during the training
+        metrics_to_monitor = "'val_" + self.loss.name
         checkpointer = ModelCheckpoint('model-{epoch:02d}-{val_loss:.4f}.hdf5',
-                                       monitor='val_'+self.loss.name,
+                                       monitor=metrics_to_monitor,
                                        verbose=verb,
                                        save_best_only=True,
                                        mode='min')
 
         # We'll stop training if no improvement after some epochs
-        earlystopper = EarlyStopping(monitor='val_'+self.loss.name, patience=25, verbose=1, mode="min")
-        reduce_lr = ReduceLROnPlateau(monitor='val_'+self.loss.name, factor=0.5, patience=5,
+        earlystopper = EarlyStopping(monitor=metrics_to_monitor, patience=25, verbose=1, mode="min")
+        reduce_lr = ReduceLROnPlateau(monitor=metrics_to_monitor, factor=0.5, patience=5,
                                       verbose=1, mode='min', min_lr=0.00001)
 
         # Train
@@ -194,17 +218,7 @@ class ModelTrainer:
                                   callbacks=[earlystopper, reduce_lr, checkpointer],
                                   verbose=verb
                                   )
-        # return training
-
-
-def prepare_labels(train_labels_path):
-    MAX_VELOCITY = 130.0  # [Km]
-    labels_path = Path(train_labels_path)
-    labels = pd.read_csv(labels_path)[['img_name', 'steer', 'velocity']]
-    # normalize speed
-    labels['velocity_normalized'] = labels.loc[:, 'velocity'] / MAX_VELOCITY
-
-    return labels
+        return training
 
 
 def main(arg):
@@ -228,27 +242,13 @@ def main(arg):
     # Create and train the model
     trainer = ModelTrainer(generators)
     if arg.net_model == 'PilotNet':
-        trainer.create_PilotNET(scale=1.0)
+        trainer.create_pilot_net(scale=1.0)
     elif arg.net_model == 'ImpPilotNet':
-        trainer.create_ImprovedPilotNet()
+        trainer.create_improved_pilot_net()
     else:
         raise NotImplementedError("Choose from available models, check train_av.py --help")
 
-    trainer.train(epochs=arg.epochs, verb=arg.verbose)
-
-
-def allow_memory_growth():
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-        try:
-            # Currently, memory growth needs to be the same across GPUs
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-        except RuntimeError as e:
-            # Memory growth must be set before GPUs have been initialized
-            print(e)
+    _ = trainer.train(epochs=arg.epochs, verb=arg.verbose)
 
 
 if __name__ == "__main__":
