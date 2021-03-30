@@ -3,6 +3,7 @@
 # ROS imports
 import rospy
 import rospkg
+from cv_bridge import CvBridge, CvBridgeError
 
 from prius_msgs.msg import Control
 from av_msgs.msg import Mode, States
@@ -11,7 +12,6 @@ from sensor_msgs.msg import Image
 # Python imports
 import tensorflow as tf
 import cv2
-from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from simple_pid import PID
 
@@ -92,7 +92,7 @@ class Predictor:
             self.angle_prediction = self.model_output[0][0]
             self.velocity_prediction = self.model_output[0][1]
 
-            print("angle prediction: ", self.angle_prediction, "velocity prediction: ", self.velocity_prediction)
+            print("angle prediction {:.2f}, velocity_prediction {:.2f}".format(self.angle_prediction, self.velocity_prediction))
 
     def calcucate_control(self):
         stamp = rospy.Time.now()
@@ -102,9 +102,8 @@ class Predictor:
         # pid
         self.pid.setpoint = target_velocity
         pid_output = self.pid(self.velocity_measure)
-        print("velocity measure:", self.velocity_measure, "target velocity:", target_velocity, "pid output:",
-              pid_output)
-
+        print("velocity measure: {:.2f}, target velocity: {:.2f}, pid output: {:.2f}".format(self.velocity_measure,
+                                                                                             target_velocity, pid_output))
         control_msg = Control()
         control_msg.header.stamp = stamp
         # angle
@@ -121,6 +120,7 @@ class Predictor:
 
         if self.selfdrive_mode:
             self.control_prediction_pub.publish(control_msg)
+
 
 if __name__ == '__main__':
     rospy.init_node("control_prediction")
