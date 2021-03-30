@@ -27,7 +27,7 @@ During implementation, we've tested 2 different network architectures.
 
 The second network seemed to work better for us. We adapted it a bit and changed the input shape of the image to 800x264
 as well as the output shape as we had to predict steering angle and velocity. Final network architecture looks following:
-![network_architecture](img/model.png){:height="50%" width="50%"}
+![network_architecture](img/model.png)
 
 ## First run
 The commands run in host are marked as **H** and the commands from terminal are marked as **C**
