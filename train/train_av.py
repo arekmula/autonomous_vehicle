@@ -132,7 +132,7 @@ class ModelTrainer:
 
         return model
 
-    def create_PilotNET(self,scale):
+    def create_PilotNET(self, scale):
         """
         Nvidia PilotNet
         paper : https://arxiv.org/pdf/2010.08776.pdf
@@ -151,6 +151,8 @@ class ModelTrainer:
             Flatten(),
             Dense(int(1164*scale), activation='elu'),
             Dense(int(100*scale), activation='elu'),
+            Dense(int(50*scale), activation='elu'),
+            Dense(int(10*scale), activation='elu'),
             Dense(2)
         ])
 
