@@ -22,6 +22,7 @@ def print_training_info(arg):
     print(f"Keras version: {keras.__version__}")
     print("")
     print("Training info:\n")
+    print(f"Network architecture: {arg.net_model}")
     print(f"Input image size: {arg.input_width}x{arg.input_height}")
     print(f"Epochs : {arg.epochs}")
     print(f"Batch size : {arg.batch_size}")
@@ -106,13 +107,16 @@ class ModelTrainer:
         self.img_width = generators.img_shape[0]
         self.img_height = generators.img_shape[1]
         self.img_depth = generators.img_shape[2]
+        self.model = None
+        self.optimizer = None
+        self.loss = None
 
-    def create_model(self):
+    def create_ImprovedPilotNet(self):
         """
         Build CNN model using img_width, img_height from fields.
         https://www.researchgate.net/publication/334080652_Self-Driving_Car_Steering_Angle_Prediction_Based_On_Deep_Neural_Network_An_Example_Of_CarND_Udacity_Simulator
         """
-        model = Sequential([
+        self.model = Sequential([
             Conv2D(input_shape=(self.img_width, self.img_height, self.img_depth), filters=8, kernel_size=(9, 9),
                    strides=(3, 3), activation='elu', padding='valid'),
             BatchNormalization(),
@@ -125,45 +129,44 @@ class ModelTrainer:
             Dense(50, activation='elu'),
             Dense(2, activation='linear')
         ])
-        loss = losses.MeanAbsoluteError()
-        optimizer = Adam(lr=0.0001)
+        self.loss = losses.MeanAbsoluteError()
+        self.optimizer = Adam(lr=0.0001)
         metrics_to_monitor = [metrics.MeanAbsoluteError(), metrics.MeanSquaredError()]
-        model.compile(optimizer=optimizer, loss=loss, metrics=metrics_to_monitor)
-
-        return model
+        self.model.compile(optimizer=self.optimizer, loss=self.loss, metrics=metrics_to_monitor)
+        self.model.summary()
 
     def create_PilotNET(self, scale):
         """
-        Nvidia PilotNet
+        Nvidia PilotNetsel
         paper : https://arxiv.org/pdf/2010.08776.pdf
 
         @param scale - resize the network, 1.0 -> paper, 0.5 -> half of neurons
 
         """
 
-        model = Sequential([
-            Conv2D(input_shape=(self.img_width, self.img_height, self.img_depth), filters=int(24*scale), kernel_size=(5, 5),
+        self.model = Sequential([
+            Conv2D(input_shape=(self.img_width, self.img_height, self.img_depth), filters=int(24 * scale),
+                   kernel_size=(5, 5),
                    strides=(2, 2), activation='elu', padding='valid'),
-            Conv2D(filters=int(36*scale), kernel_size=(5, 5), strides=(2, 2), activation='elu', padding='valid'),
-            Conv2D(filters=int(48*scale), kernel_size=(5, 5), strides=(3, 2), activation='elu', padding='valid'),
-            Conv2D(filters=int(64*scale), kernel_size=(3, 3), strides=(1, 1), activation='elu', padding='valid'),
-            Conv2D(filters=int(64*scale), kernel_size=(3, 3), strides=(1, 1), activation='elu', padding='same'),
+            Conv2D(filters=int(36 * scale), kernel_size=(5, 5), strides=(2, 2), activation='elu', padding='valid'),
+            Conv2D(filters=int(48 * scale), kernel_size=(5, 5), strides=(3, 2), activation='elu', padding='valid'),
+            Conv2D(filters=int(64 * scale), kernel_size=(3, 3), strides=(1, 1), activation='elu', padding='valid'),
+            Conv2D(filters=int(64 * scale), kernel_size=(3, 3), strides=(1, 1), activation='elu', padding='same'),
             Flatten(),
-            Dense(int(1164*scale), activation='elu'),
-            Dense(int(100*scale), activation='elu'),
-            Dense(int(50*scale), activation='elu'),
-            Dense(int(10*scale), activation='elu'),
+            Dense(int(1164 * scale), activation='elu'),
+            Dense(int(100 * scale), activation='elu'),
+            Dense(int(50 * scale), activation='elu'),
+            Dense(int(10 * scale), activation='elu'),
             Dense(2)
         ])
 
-        loss = losses.MeanSquaredError()
-        optimizer = Adam(lr=0.001)
+        self.loss = losses.MeanSquaredError()
+        self.optimizer = Adam(lr=0.001)
         metrics_to_monitor = [metrics.MeanAbsoluteError(), metrics.MeanSquaredError()]
-        model.compile(optimizer=optimizer, loss=loss, metrics=metrics_to_monitor)
+        self.model.compile(optimizer=self.optimizer, loss=self.loss, metrics=metrics_to_monitor)
+        self.model.summary()
 
-        return model
-
-    def train(self, model, epochs: int, verb: int):
+    def train(self, epochs: int, verb: int):
         """
         Train the model
         """
@@ -171,29 +174,27 @@ class ModelTrainer:
         validation_steps = self.generators.valid_generator.n // self.generators.batch_size
 
         # Save the best model during the training
-        checkpointer = ModelCheckpoint('model-{epoch:02d}-{val_loss:.2f}',
-                                       monitor='val_mean_absolute_error',
+        checkpointer = ModelCheckpoint('model-{epoch:02d}-{val_loss:.4f}.hdf5',
+                                       monitor='val_'+self.loss.name,
                                        verbose=verb,
-                                       save_best_only=False,
+                                       save_best_only=True,
                                        mode='min')
 
         # We'll stop training if no improvement after some epochs
-        earlystopper = EarlyStopping(monitor='val_mean_absolute_error', patience=25, verbose=1, mode="min")
-        reduce_lr = ReduceLROnPlateau(monitor='val_mean_absolute_error', factor=0.5, patience=5,
+        earlystopper = EarlyStopping(monitor='val_'+self.loss.name, patience=25, verbose=1, mode="min")
+        reduce_lr = ReduceLROnPlateau(monitor='val_'+self.loss.name, factor=0.5, patience=5,
                                       verbose=1, mode='min', min_lr=0.00001)
 
         # Train
-        training = model.fit(self.generators.train_generator,
-                             epochs=epochs,
-                             steps_per_epoch=steps_per_epoch,
-                             validation_data=self.generators.valid_generator,
-                             validation_steps=validation_steps,
-                             callbacks=[earlystopper, reduce_lr, checkpointer],
-                             verbose=verb
-                             )
-        # Get the best saved weights
-        # model.load_weights('best_model1.h5')
-        return training
+        training = self.model.fit(self.generators.train_generator,
+                                  epochs=epochs,
+                                  steps_per_epoch=steps_per_epoch,
+                                  validation_data=self.generators.valid_generator,
+                                  validation_steps=validation_steps,
+                                  callbacks=[earlystopper, reduce_lr, checkpointer],
+                                  verbose=verb
+                                  )
+        # return training
 
 
 def prepare_labels(train_labels_path):
@@ -226,11 +227,14 @@ def main(arg):
 
     # Create and train the model
     trainer = ModelTrainer(generators)
-    model = trainer.create_PilotNET(scale=1.0)
-    model.summary()
-    # trainer.train(model=model,
-    #               epochs=arg.epochs,
-    #               verb=arg.verbose)
+    if arg.net_model == 'PilotNet':
+        trainer.create_PilotNET(scale=1.0)
+    elif arg.net_model == 'ImpPilotNet':
+        trainer.create_ImprovedPilotNet()
+    else:
+        raise NotImplementedError("Choose from available models, check train_av.py --help")
+
+    trainer.train(epochs=arg.epochs, verb=arg.verbose)
 
 
 def allow_memory_growth():
@@ -261,5 +265,8 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, help='Input batch size to network', default=128)
     parser.add_argument('--input_color_mode', type=str, help='rgb or grayscale input to network', default='rgb')
     parser.add_argument('--verbose', type=int, help='Verbosity of code', default=1)
+    parser.add_argument('--net_model', type=str,
+                        help='Choose between Improved PilotNet -> ImpPilotNet, Nvidia PilotNet -> PilotNet',
+                        default='ImpPilotNet')
     args, _ = parser.parse_known_args()
     main(args)
