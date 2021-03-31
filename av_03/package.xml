@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>av_03</name>
+  <version>0.0.0</version>
+  <description>The av_03 package</description>
+
+  <maintainer email="todo@todo.todo">todo</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>prius_msgs</depend>
+  <depend>av_msgs</depend>
+
+  <export>
+
+  </export>
+</package>

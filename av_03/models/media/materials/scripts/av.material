@@ -1,0 +1,75 @@
+material AV/Lane
+{
+  technique
+  {
+    pass
+    {
+      ambient 0.1 0.1 0.1 1.0
+      diffuse 0.8 0.8 0.8 1.0
+      specular 0.01 0.01 0.01 1.0 2.0
+
+      texture_unit
+      {
+        texture av_lane.jpg
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material AV/Two_Lanes
+{
+  technique
+  {
+    pass
+    {
+      ambient 0.1 0.1 0.1 1.0
+      diffuse 0.8 0.8 0.8 1.0
+      specular 0.01 0.01 0.01 1.0 2.0
+
+      texture_unit
+      {
+        texture av_two_lanes.jpg
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material AV/Sand
+{
+  technique
+  {
+    pass
+    {
+      ambient 0.1 0.1 0.1 1.0
+      diffuse 0.8 0.8 0.8 1.0
+      specular 0.01 0.01 0.01 1.0 2.0
+
+      texture_unit
+      {
+        texture av_sand.jpg
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material AV/Lane_Sand
+{
+  technique
+  {
+    pass
+    {
+      ambient 0.1 0.1 0.1 1.0
+      diffuse 0.8 0.8 0.8 1.0
+      specular 0.01 0.01 0.01 1.0 2.0
+
+      texture_unit
+      {
+        texture av_lane_sand.jpg
+        filtering trilinear
+      }
+    }
+  }
+}

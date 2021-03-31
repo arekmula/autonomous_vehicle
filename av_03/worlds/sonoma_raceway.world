@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+
+    <gui fullscreen='0'>
+      <plugin name='keyboard' filename='libKeyboardGUIPlugin.so'/>
+      <camera name="user_camera">
+        <!--<pose>-20 0 3 0 0 0</pose>-->
+        <track_visual>
+          <name>prius</name>
+          <static>true</static>
+          <use_model_frame>true</use_model_frame>
+          <xyz>-10 0 2.5</xyz>
+          <inherit_yaw>true</inherit_yaw>
+        </track_visual>
+      </camera>
+    </gui>
+
+    <light name='sun' type='directional'>
+      <cast_shadows>1</cast_shadows>
+      <pose frame=''>0 0 10 0 -0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <include>
+      <uri>model://sonoma_raceway</uri>
+      <pose>-295 150 -7 0 0 0</pose>
+    </include>
+
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <latitude_deg>38.161479</latitude_deg>
+      <longitude_deg>-122.454630</longitude_deg>
+      <elevation>488.0</elevation>
+    </spherical_coordinates>
+
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type='adiabatic'/>
+    <physics name='default_physics' default='0' type='ode'>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+  </world>
+</sdf>

@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="model" default="$(find prius_description)/urdf/prius.urdf"/>
+
+    <param name="robot_description" textfile="$(arg model)"/>
+
+    <env name="GAZEBO_MODEL_PATH" value="$(find av_03)/models/"/>
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="verbose" value="true"/>
+        <arg name="world_name" value="$(find av_03)/worlds/custom.world"/>
+    </include>
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" />
+    <node pkg="fake_localization" type="fake_localization" name="fake_localization">
+        <!--<remap from="base_pose_ground_truth" to="/prius/base_pose_ground_truth"/>-->
+    </node>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="very_inaccurate_odom" args="0 0 0 0 0 0 odom base_link"/>
+
+    <!-- Spawn prius vehicle -->
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -x 100 -y 100 -z 0.5 -Y 0.0 -model prius"/>
+
+    <!-- Run joy node -->
+    <!--<node pkg="joy" type="joy_node" name="joy_node0">
+        <param name="dev" value="/dev/input/js0"/>
+        <param name="autorepeat_rate" value="30.0"/>
+        <param name="default_trig_val" type="boolean" value="true" />
+    </node>-->
+
+    <!-- Run controller node -->
+    <!--- <node pkg="av_03" type="controller_node.py" name="controller_node" output="screen" /> -->
+
+    <!-- Run states node -->
+    <node pkg="av_03" type="states_node.py" name="states_node" output="screen" />
+
+    <!-- Run collector node -->
+    <node pkg="av_03" type="collector_node.py" name="collector_node" output="screen" />
+
+    <!-- Run control_prediction node -->
+    <node pkg="av_03" type="control_prediction.py" name="control_prediction_node" output="screen" />
+
+    <!--Run visualizer node -->
+    <node pkg="av_03" type="visualizer_node.py" name="visualizer_node" output="screen" />
+
+    <!-- Run image_view node -->
+    <!--<node pkg="image_view" type="image_view" name="image_view_node" respawn="false" output="screen">
+    <remap from="image" to="/prius/visualization" />
+    </node>-->
+
+</launch>
