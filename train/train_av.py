@@ -3,6 +3,9 @@ import pandas as pd
 import argparse
 from pathlib import Path
 
+# Visualisation
+import matplotlib.pyplot as plt
+
 # Tensorflow
 import tensorflow as tf
 from tensorflow import keras
@@ -27,6 +30,7 @@ def print_training_info(arg):
     print(f"Batch size : {arg.batch_size}")
     print(f"Validation split : {arg.val_split}")
     print(f"Input color mode : {arg.input_color_mode}")
+    print(f"Path to save training stats: {arg.path_to_save_train_stats}")
 
 
 def allow_memory_growth():
@@ -133,6 +137,7 @@ class ModelTrainer:
         self.model = None
         self.optimizer = None
         self.loss = None
+        self.training = None
 
     def create_improved_pilot_net(self):
         """
@@ -192,33 +197,52 @@ class ModelTrainer:
     def train(self, epochs: int, verb: int):
         """
         Train the model
+        @param epochs number of training epoch
+        @param verb - level of verbosity of trainer
         """
         steps_per_epoch = self.generators.train_generator.n // self.generators.batch_size
         validation_steps = self.generators.valid_generator.n // self.generators.batch_size
 
         # Save the best model during the training
-        metrics_to_monitor = "'val_" + self.loss.name
         checkpointer = ModelCheckpoint('model-{epoch:02d}-{val_loss:.4f}.hdf5',
-                                       monitor=metrics_to_monitor,
+                                       monitor='val_loss',
                                        verbose=verb,
                                        save_best_only=True,
                                        mode='min')
 
         # We'll stop training if no improvement after some epochs
-        earlystopper = EarlyStopping(monitor=metrics_to_monitor, patience=25, verbose=1, mode="min")
-        reduce_lr = ReduceLROnPlateau(monitor=metrics_to_monitor, factor=0.5, patience=5,
+        earlystopper = EarlyStopping(monitor='val_loss', patience=25, verbose=1, mode="min")
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5,
                                       verbose=1, mode='min', min_lr=0.00001)
 
         # Train
-        training = self.model.fit(self.generators.train_generator,
-                                  epochs=epochs,
-                                  steps_per_epoch=steps_per_epoch,
-                                  validation_data=self.generators.valid_generator,
-                                  validation_steps=validation_steps,
-                                  callbacks=[earlystopper, reduce_lr, checkpointer],
-                                  verbose=verb
-                                  )
-        return training
+        self.training = self.model.fit(self.generators.train_generator,
+                                       epochs=epochs,
+                                       steps_per_epoch=steps_per_epoch,
+                                       validation_data=self.generators.valid_generator,
+                                       validation_steps=validation_steps,
+                                       callbacks=[earlystopper, reduce_lr, checkpointer],
+                                       verbose=verb
+                                       )
+
+    def plot_save_history(self, path: str, save=True):
+        """
+        Plot training history
+        @param path - path to save train history
+        @param save - if True, save image, False do not save
+        """
+
+        # Trained model analysis and evaluation
+        f, ax = plt.subplots(1, 1, figsize=(12, 3))
+        ax.plot(self.training.history['loss'], label="Loss")
+        ax.plot(self.training.history['val_loss'], label="Validation loss")
+        ax.set_title('Loss')
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('Loss')
+        ax.legend()
+        if save:
+            plt.savefig(path)
+        plt.show()
 
 
 def main(arg):
@@ -248,7 +272,9 @@ def main(arg):
     else:
         raise NotImplementedError("Choose from available models, check train_av.py --help")
 
-    _ = trainer.train(epochs=arg.epochs, verb=arg.verbose)
+    trainer.train(epochs=arg.epochs, verb=arg.verbose)
+
+    trainer.plot_save_history(arg.path_to_save_train_stats)
 
 
 if __name__ == "__main__":
@@ -268,5 +294,7 @@ if __name__ == "__main__":
     parser.add_argument('--net_model', type=str,
                         help='Choose between Improved PilotNet -> ImpPilotNet, Nvidia PilotNet -> PilotNet',
                         default='ImpPilotNet')
+    parser.add_argument('--path_to_save_train_stats',
+                        type=str, help="Path to save course of training", default='train_history.png')
     args, _ = parser.parse_known_args()
     main(args)
